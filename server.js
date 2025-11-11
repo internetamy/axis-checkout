@@ -41,3 +41,4 @@ app.post("/create-checkout", async (req, res) => {
 });
 
 app.listen(3000, () => console.log("Ready on 3000"));
+module.exports = app;
