@@ -12,7 +12,7 @@ const NAME_TO_PRICEID = {
   "BPC-157 10mg": "price_1SRi91CCtqHNyYddNJ02PDc"
 };
 
-app.post("/api/create-checkout", async (req, res) => {
+app.post("/", async (req, res) => {
   try {
     const { items } = req.body;
     const line_items = [];
