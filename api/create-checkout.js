@@ -2,7 +2,7 @@ const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 const NAME_TO_PRICEID = {
   "GLOW": "price_1SrjPqCtq6MyYdzb3guUnv",
-  "R3 - 10":"price_1SSNR7CNw9KMO1UhV615hTh7",
+  "R3 - 10":"price_1SSRHXCNw9KMO1UhsdNBut2K",
   "BPC-157 10mg": "price_1Srj91Ctq6MyYdzbU92PDc"
 };
 
