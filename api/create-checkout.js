@@ -1,18 +1,16 @@
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
-const cors = require("cors")();
-const express = require("express");
-
-const app = express();
-app.use(cors);
-app.use(express.json());
 
 const NAME_TO_PRICEID = {
-  "GLOW": "price_1SRi7pCCtqHNyYdzb3qqUwn",
-  "R3 - 10": "price_1SRi8ZCCtqrHNyYdwVlsoqqP",
-  "BPC-157 10mg": "price_1SRi91CCtqHNyYddNJ02PDc"
+  "GLOW": "price_1SrjPqCtq6MyYdzb3guUnv",
+  "R3 - 10": "price_1SrjR8Ctq6MyYdzbqWlsogqP",
+  "BPC-157 10mg": "price_1Srj91Ctq6MyYdzbU92PDc"
 };
 
-app.post("/", async (req, res) => {
+module.exports = async (req, res) => {
+  if (req.method !== "POST") {
+    return res.status(405).send("Method Not Allowed");
+  }
+
   try {
     const { items } = req.body;
     const line_items = [];
@@ -25,19 +23,15 @@ app.post("/", async (req, res) => {
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
+      payment_method_types: ["card"],
       line_items,
-      success_url: "https://axisbioscience.com/thank-you",
-      cancel_url: "https://axisbioscience.com/cart",
-      billing_address_collection: "required",
-      shipping_address_collection: { allowed_countries: ["US", "CA"] },
-      payment_intent_data: { statement_descriptor: "AXISBIOSCI ORDER" },
+      success_url: "https://axisbioscience.com/success",
+      cancel_url: "https://axisbioscience.com/cancel"
     });
 
-    return res.json({ url: session.url });
-  } catch (e) {
-    console.error(e);
-    return res.status(400).json({ error: "checkout_create_failed" });
+    res.status(200).json({ url: session.url });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
   }
-});
-
-module.exports = app;
+};
