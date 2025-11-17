@@ -60,10 +60,11 @@ module.exports = async (req, res) => {
       metadataItems.push("Free Shipping");
     }
 
-    // ✅ Create Stripe Checkout Session
+    // Create Stripe Checkout Session
 const session = await stripe.checkout.sessions.create({
   mode: "payment",
   payment_method_types: ["card"],
+
   line_items: [
     {
       price_data: {
@@ -77,14 +78,19 @@ const session = await stripe.checkout.sessions.create({
       quantity: 1,
     },
   ],
+
+  // This metadata shows up on the Checkout Session object
   metadata: {
-    items: metadataItems.join(", "),
+    items: metadataItems.join(", ")
   },
+
+  // This metadata shows up on the PaymentIntent (what Stripe shows in Transactions)
   payment_intent_data: {
     metadata: {
       items: metadataItems.join(", ")
     }
   },
+
   success_url: "https://axisbioscience.com/success",
   cancel_url: "https://axisbioscience.com/cancel",
 });
