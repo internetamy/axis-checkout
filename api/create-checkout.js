@@ -30,31 +30,49 @@ module.exports = async (req, res) => {
     let total = 0;
     let metadataItems = [];
 
+    // Build product total + metadata
     for (const it of items) {
       const product = CATALOG[it.name];
       if (!product) continue;
 
-      let price = product.variants[it.variant] || product.variants["single"];
+      const variant = it.variant || "single";
+      const price = product.variants[variant];
+
       total += price * (it.qty || 1);
 
       metadataItems.push(
-        `${product.code} x${it.qty || 1} (${it.variant || "single"})`
+        `${product.code} x${it.qty || 1} (${variant})`
       );
     }
 
-    // Shipping rule
+    // SELECT SHIPPING RATE
+    let shippingRate = "";
     if (total < 20000) {
-      total += 1500;
+      // Under $200 → Standard $15 shipping
+      shippingRate = "shr_1SUZseCNw9KMO1UhE1H0WTY3";
       metadataItems.push("Shipping: $15");
     } else {
+      // $200+ → FREE shipping
+      shippingRate = "shr_1SUZt6CNw9KMO1UhPR8DfJTT";
       metadataItems.push("Free Shipping");
     }
 
-    // Create Checkout Session
+    // CREATE STRIPE CHECKOUT SESSION
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
 
+      // collect full shipping address
+      shipping_address_collection: {
+        allowed_countries: ["US"]
+      },
+
+      // auto-selected shipping rate (no customer choice)
+      shipping_options: [
+        { shipping_rate: shippingRate }
+      ],
+
+      // Order Total (products only — shipping is handled by Stripe)
       line_items: [
         {
           price_data: {
@@ -63,20 +81,22 @@ module.exports = async (req, res) => {
               name: "Order Total",
               description: "Thank you for your order!"
             },
-            unit_amount: total
+            unit_amount: total,
           },
           quantity: 1
         }
       ],
 
-      // metadata must be strings
+      // metadata (for your eyes only)
       metadata: {
-        items: metadataItems.join(", ")
+        items: metadataItems.join(", "),
+        product_total: total
       },
 
       payment_intent_data: {
         metadata: {
-          items: metadataItems.join(", ")
+          items: metadataItems.join(", "),
+          product_total: total
         }
       },
 
@@ -85,6 +105,7 @@ module.exports = async (req, res) => {
     });
 
     return res.status(200).json({ url: session.url });
+
   } catch (err) {
     console.error("Error:", err);
     return res.status(500).json({ error: err.message });
