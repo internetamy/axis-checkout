@@ -80,7 +80,9 @@ module.exports = async (req, res) => {
       metadata: {
         items: metadataItems.join(", "),
 payment_intent_data: {
-  metadata: { items: metadataItems.join(", ") }
+  metadata: { 
+     items: metadataItems.join(", ") 
+  }
 },
       },
       success_url: "https://axisbioscience.com/success",
