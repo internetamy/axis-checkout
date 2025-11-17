@@ -60,7 +60,7 @@ module.exports = async (req, res) => {
       metadataItems.push("Free Shipping");
     }
 
-   // ✅ Create Stripe Checkout Session
+   //Create Stripe Checkout Session
 const session = await stripe.checkout.sessions.create({
   mode: "payment",
   payment_method_types: ["card"],
