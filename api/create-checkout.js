@@ -1,21 +1,21 @@
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
-// 🧾 Product Catalog with Variants
+// Product Catalog with Variants
 const CATALOG = {
   "R3 - 10": {
-    code: "AXQRN", // Stealth code for your internal use
+    code: "AXQRN",
     variants: {
-      "single": 11000, // $110.00
-      "3-pack": 14200, // $142.00
-      "5-pack": 23000  // $230.00
+      "single": 11000,
+      "3-pack": 14200,
+      "5-pack": 23000
     }
   },
   "BPC-157 10mg": {
     code: "AXQRC",
     variants: {
-      "single": 15000, // $150.00
-      "3-pack": 39500, // $395.00
-      "5-pack": 62000  // $620.00
+      "single": 15000,
+      "3-pack": 39500,
+      "5-pack": 62000
     }
   }
 };
@@ -30,29 +30,19 @@ module.exports = async (req, res) => {
     let total = 0;
     let metadataItems = [];
 
-    // Loop through cart items
     for (const it of items) {
       const product = CATALOG[it.name];
       if (!product) continue;
 
-      // Pick correct variant price
-      let price = 0;
-      if (it.variant && product.variants[it.variant]) {
-        price = product.variants[it.variant];
-      } else {
-        price = product.variants["single"]; // Default
-      }
-
-      // Add to total (multiply by qty)
+      let price = product.variants[it.variant] || product.variants["single"];
       total += price * (it.qty || 1);
 
-      // Save stealth codes to metadata
       metadataItems.push(
         `${product.code} x${it.qty || 1} (${it.variant || "single"})`
       );
     }
 
-    // Add $15 shipping if under $200
+    // Shipping rule
     if (total < 20000) {
       total += 1500;
       metadataItems.push("Shipping: $15");
@@ -60,39 +50,43 @@ module.exports = async (req, res) => {
       metadataItems.push("Free Shipping");
     }
 
-   //Create Stripe Checkout Session
-const session = await stripe.checkout.sessions.create({
-  mode: "payment",
-  payment_method_types: ["card"],
+    // Create Checkout Session
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      payment_method_types: ["card"],
 
-  // One single line item showing the total only
-  line_items: [
-    {
-      price_data: {
-        currency: "usd",
-        product_data: {
-          name: "Order Total",
-          description: "Thank you for your order!"
-        },
-        unit_amount: total,
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: "Order Total",
+              description: "Thank you for your order!"
+            },
+            unit_amount: total
+          },
+          quantity: 1
+        }
+      ],
+
+      // metadata must be strings
+      metadata: {
+        items: metadataItems.join(", ")
       },
-      quantity: 1,
-    },
-  ],
 
-  // Attach metadata to the Checkout Session
-  metadata: {
-    items: metadataItems.join(", ")
-  },
+      payment_intent_data: {
+        metadata: {
+          items: metadataItems.join(", ")
+        }
+      },
 
-  // Attach metadata to the Payment Intent (this is what Stripe shows in Transactions)
-  payment_intent_data: {
-    metadata: {
-      items: metadataItems.join(", ")
-    }
-  },
+      success_url: "https://axisbioscience.com/success",
+      cancel_url: "https://axisbioscience.com/cancel"
+    });
 
-  success_url: "https://axisbioscience.com/success",
-  cancel_url: "https://axisbioscience.com/cancel",
-});
-
+    return res.status(200).json({ url: session.url });
+  } catch (err) {
+    console.error("Error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+};
