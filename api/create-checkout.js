@@ -61,38 +61,30 @@ module.exports = async (req, res) => {
     }
 
     // ✅ Create Stripe Checkout Session
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      payment_method_types: ["card"],
-      line_items: [
-        {
-          price_data: {
-            currency: "usd",
-            product_data: {
-              name: "Order Total",
-              description: "Thank you for your order!",
-            },
-            unit_amount: total,
-          },
-          quantity: 1,
+const session = await stripe.checkout.sessions.create({
+  mode: "payment",
+  payment_method_types: ["card"],
+  line_items: [
+    {
+      price_data: {
+        currency: "usd",
+        product_data: {
+          name: "Order Total",
+          description: "Thank you for your order!",
         },
-      ],
-      metadata: {
-        items: metadataItems.join(", "),
-payment_intent_data: {
-  metadata: { 
-     items: metadataItems.join(", ") 
-  }
-},
+        unit_amount: total,
       },
-      success_url: "https://axisbioscience.com/success",
-      cancel_url: "https://axisbioscience.com/cancel",
-    });
-
-    res.status(200).json({ url: session.url });
-
-  } catch (error) {
-    console.error("❌ Checkout Error:", error);
-    res.status(500).json({ error: error.message });
-  }
-};
+      quantity: 1,
+    },
+  ],
+  metadata: {
+    items: metadataItems.join(", "),
+  },
+  payment_intent_data: {
+    metadata: {
+      items: metadataItems.join(", ")
+    }
+  },
+  success_url: "https://axisbioscience.com/success",
+  cancel_url: "https://axisbioscience.com/cancel",
+});
