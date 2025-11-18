@@ -1,11 +1,11 @@
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
-// Product Catalog with Variants
+// Product Catalog
 const CATALOG = {
   "R3 - 10": {
     code: "AXQRN",
     variants: {
-      "single": 11000,
+      single: 11000,
       "3-pack": 14200,
       "5-pack": 23000
     }
@@ -13,7 +13,7 @@ const CATALOG = {
   "BPC-157 10mg": {
     code: "AXQRC",
     variants: {
-      "single": 15000,
+      single: 15000,
       "3-pack": 39500,
       "5-pack": 62000
     }
@@ -26,11 +26,11 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { items } = req.body;
+    const { items, notes } = req.body;
     let total = 0;
-    let metadataItems = [];
+    let metadataLines = [];
 
-    // Build product total + metadata
+    // Build totals + metadata
     for (const it of items) {
       const product = CATALOG[it.name];
       if (!product) continue;
@@ -40,39 +40,43 @@ module.exports = async (req, res) => {
 
       total += price * (it.qty || 1);
 
-      metadataItems.push(
-        `${product.code} x${it.qty || 1} (${variant})`
-      );
+      metadataLines.push(`${product.code} x${it.qty || 1} (${variant})`);
     }
 
-    // SELECT SHIPPING RATE
+    // SHIPPING LOGIC
     let shippingRate = "";
     if (total < 20000) {
-      // Under $200 → Standard $15 shipping
-      shippingRate = "shr_1SUZseCNw9KMO1UhE1H0WTY3";
-      metadataItems.push("Shipping: $15");
+      shippingRate = "shr_1SUZseCNw9KMO1UhE1H0WTY3"; // $15 shipping
+      metadataLines.push("Shipping: $15");
     } else {
-      // $200+ → FREE shipping
-      shippingRate = "shr_1SUZt6CNw9KMO1UhPR8DfJTT";
-      metadataItems.push("Free Shipping");
+      shippingRate = "shr_1SUZt6CNw9KMO1UhPR8DfJTT"; // free shipping
+      metadataLines.push("Free Shipping");
     }
 
-    // CREATE STRIPE CHECKOUT SESSION
+    // If customer added order notes
+    if (notes && notes.trim() !== "") {
+      metadataLines.push(`Notes: ${notes.trim()}`);
+    }
+
+    // CREATE STRIPE SESSION
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
 
-      // collect full shipping address
+      billing_address_collection: "required",
+
       shipping_address_collection: {
         allowed_countries: ["US"]
       },
 
-      // auto-selected shipping rate (no customer choice)
+      phone_number_collection: {
+        enabled: true
+      },
+
       shipping_options: [
         { shipping_rate: shippingRate }
       ],
 
-      // Order Total (products only — shipping is handled by Stripe)
       line_items: [
         {
           price_data: {
@@ -81,22 +85,19 @@ module.exports = async (req, res) => {
               name: "Order Total",
               description: "Thank you for your order!"
             },
-            unit_amount: total,
+            unit_amount: total
           },
           quantity: 1
         }
       ],
 
-      // metadata (for your eyes only)
       metadata: {
-        items: metadataItems.join(", "),
-        product_total: total
+        order_details: metadataLines.join(" | ")
       },
 
       payment_intent_data: {
         metadata: {
-          items: metadataItems.join(", "),
-          product_total: total
+          order_details: metadataLines.join(" | ")
         }
       },
 
