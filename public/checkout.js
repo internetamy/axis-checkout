@@ -1,5 +1,7 @@
 // === Stripe Checkout Trigger ===
 async function startStripeCheckout() {
+  console.log("ITEMS SENDING →", items);
+ {
   try {
     console.log("Starting Stripe Checkout…");
 
