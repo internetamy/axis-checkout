@@ -1,26 +1,21 @@
-// === Stripe Checkout Trigger ===
 async function startStripeCheckout() {
   try {
-    console.log("Starting Stripe Checkout...");
+    console.log("Starting Stripe Checkout…");
 
     const items = [];
 
-    document.querySelectorAll(".hl-cart-item-border-bottom").forEach(row => {
-      const nameEl = row.querySelector(".hl-cart-product-name");
-      const variantEl = row.querySelector(".hl-cart-item-variant");
-      const qtyEl = row.querySelector("input");
+    document.querySelectorAll(".cart-item-border-bottom").forEach(row => {
+      const name = row.querySelector(".hl-cart-product-name")?.innerText.trim();
+      const variant = row.querySelector(".hl-cart-item-variant")?.innerText.trim();
+      const qty = parseInt(row.querySelector(".hl-cart-qty-input")?.value || "1");
 
-      if (!nameEl || !qtyEl) return;
-
-      const name = nameEl.innerText.trim();
-      const qty = parseInt(qtyEl.value || "1");
-      const variantText = (variantEl?.innerText || "").toLowerCase();
-
-      let variant = "single";
-      if (variantText.includes("3")) variant = "3-pack";
-      if (variantText.includes("5")) variant = "5-pack";
-
-      items.push({ name, qty, variant });
+      if (name && qty > 0) {
+        items.push({
+          name,
+          variant: variant || "Single",
+          qty
+        });
+      }
     });
 
     console.log("ITEMS SENDING →", items);
@@ -55,17 +50,16 @@ async function startStripeCheckout() {
 
 // === Intercept Checkout Button ===
 document.addEventListener("click", function (e) {
-  const target = e.target.closest("a, button");
-  if (!target) return;
+  const t = e.target.closest("a, button");
+  if (!t) return;
 
-  const txt = (target.textContent || "").toLowerCase();
-  const href = (target.getAttribute("href") || "").toLowerCase();
-  const action = (target.getAttribute("data-action") || "").toLowerCase();
+  const txt = (t.textContent || "").toLowerCase();
+  const href = (t.getAttribute("href") || "").toLowerCase();
 
-  if (txt.includes("checkout") || href.includes("checkout") || action.includes("checkout")) {
+  if (txt.includes("checkout") || href.includes("checkout")) {
     e.preventDefault();
     e.stopPropagation();
-    console.log("🔥 Stripe Intercept Triggered");
+    console.log("🔥 Stripe Intercept Active");
     startStripeCheckout();
   }
 });
