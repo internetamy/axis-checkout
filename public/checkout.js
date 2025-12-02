@@ -5,30 +5,31 @@ async function startStripeCheckout() {
 
     const items = [];
 
-    // Find all cart rows
-    document.querySelectorAll(".hl-cart-item").forEach(row => {
-      const name = row.querySelector(".hl-image-name-container")?.innerText.trim();
-      const qty = parseInt(row.querySelector(".hl-cart-qty-container input")?.value || "1");
+    document.querySelectorAll(".hl-cart-item-border-bottom").forEach(row => {
+      const nameEl = row.querySelector(".hl-cart-product-name");
+      const variantEl = row.querySelector(".hl-cart-item-variant");
+      const qtyEl = row.querySelector("input");
 
-      if (name) {
-        const variantText = row.innerText.toLowerCase();
-        let variant = "single";
+      if (!nameEl || !qtyEl) return;
 
-        if (variantText.includes("3")) variant = "3-pack";
-        if (variantText.includes("5")) variant = "5-pack";
+      const name = nameEl.innerText.trim();
+      const qty = parseInt(qtyEl.value || "1");
+      const variantText = (variantEl?.innerText || "").toLowerCase();
 
-        items.push({ name, qty, variant });
-      }
+      let variant = "single";
+      if (variantText.includes("3")) variant = "3-pack";
+      if (variantText.includes("5")) variant = "5-pack";
+
+      items.push({ name, qty, variant });
     });
+
+    console.log("ITEMS SENDING →", items);
 
     if (!items.length) {
       alert("Your cart is empty.");
       return;
     }
 
-    console.log("ITEMS SENDING →", items);
-
-    // Send to backend
     const res = await fetch("https://axis-checkout.vercel.app/api/create-checkout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -61,14 +62,10 @@ document.addEventListener("click", function (e) {
   const href = (target.getAttribute("href") || "").toLowerCase();
   const action = (target.getAttribute("data-action") || "").toLowerCase();
 
-  if (
-    txt.includes("checkout") ||
-    href.includes("checkout") ||
-    action.includes("checkout")
-  ) {
+  if (txt.includes("checkout") || href.includes("checkout") || action.includes("checkout")) {
     e.preventDefault();
     e.stopPropagation();
-    console.log("Intercepted checkout → launching Stripe");
+    console.log("🔥 Stripe Intercept Triggered");
     startStripeCheckout();
   }
 });
