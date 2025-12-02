@@ -1,12 +1,11 @@
 // === Stripe Checkout Trigger ===
 async function startStripeCheckout() {
-  console.log("ITEMS SENDING →", items);
- {
   try {
-    console.log("Starting Stripe Checkout…");
+    console.log("Starting Stripe Checkout...");
 
     const items = [];
 
+    // Find all cart rows
     document.querySelectorAll(".hl-cart-item").forEach(row => {
       const name = row.querySelector(".hl-image-name-container")?.innerText.trim();
       const qty = parseInt(row.querySelector(".hl-cart-qty-container input")?.value || "1");
@@ -14,6 +13,7 @@ async function startStripeCheckout() {
       if (name) {
         const variantText = row.innerText.toLowerCase();
         let variant = "single";
+
         if (variantText.includes("3")) variant = "3-pack";
         if (variantText.includes("5")) variant = "5-pack";
 
@@ -26,6 +26,9 @@ async function startStripeCheckout() {
       return;
     }
 
+    console.log("ITEMS SENDING →", items);
+
+    // Send to backend
     const res = await fetch("https://axis-checkout.vercel.app/api/create-checkout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -48,24 +51,24 @@ async function startStripeCheckout() {
   }
 }
 
+
 // === Intercept Checkout Button ===
-document.addEventListener("click", function(e) {
+document.addEventListener("click", function (e) {
   const target = e.target.closest("a, button");
   if (!target) return;
 
   const txt = (target.textContent || "").toLowerCase();
   const href = (target.getAttribute("href") || "").toLowerCase();
-  const dataAction = (target.getAttribute("data-action") || "").toLowerCase();
+  const action = (target.getAttribute("data-action") || "").toLowerCase();
 
   if (
     txt.includes("checkout") ||
     href.includes("checkout") ||
-    dataAction.includes("checkout")
+    action.includes("checkout")
   ) {
     e.preventDefault();
     e.stopPropagation();
     console.log("Intercepted checkout → launching Stripe");
-
     startStripeCheckout();
   }
-}, true);
+});
