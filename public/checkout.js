@@ -1,0 +1,69 @@
+// === Stripe Checkout Trigger ===
+async function startStripeCheckout() {
+  try {
+    console.log("Starting Stripe Checkout…");
+
+    const items = [];
+
+    document.querySelectorAll(".hl-cart-item").forEach(row => {
+      const name = row.querySelector(".hl-image-name-container")?.innerText.trim();
+      const qty = parseInt(row.querySelector(".hl-cart-qty-container input")?.value || "1");
+
+      if (name) {
+        const variantText = row.innerText.toLowerCase();
+        let variant = "single";
+        if (variantText.includes("3")) variant = "3-pack";
+        if (variantText.includes("5")) variant = "5-pack";
+
+        items.push({ name, qty, variant });
+      }
+    });
+
+    if (!items.length) {
+      alert("Your cart is empty.");
+      return;
+    }
+
+    const res = await fetch("https://axis-checkout.vercel.app/api/create-checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items })
+    });
+
+    const data = await res.json();
+
+    if (!data.url) {
+      console.error("Stripe error:", data);
+      alert("Checkout error.");
+      return;
+    }
+
+    window.location.href = data.url;
+
+  } catch (err) {
+    console.error("Checkout Error:", err);
+    alert("Something went wrong.");
+  }
+}
+
+// === Intercept Checkout Button ===
+document.addEventListener("click", function(e) {
+  const target = e.target.closest("a, button");
+  if (!target) return;
+
+  const txt = (target.textContent || "").toLowerCase();
+  const href = (target.getAttribute("href") || "").toLowerCase();
+  const dataAction = (target.getAttribute("data-action") || "").toLowerCase();
+
+  if (
+    txt.includes("checkout") ||
+    href.includes("checkout") ||
+    dataAction.includes("checkout")
+  ) {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log("Intercepted checkout → launching Stripe");
+
+    startStripeCheckout();
+  }
+}, true);
