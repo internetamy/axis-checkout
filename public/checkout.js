@@ -50,16 +50,26 @@ async function startStripeCheckout() {
 
 // === Intercept Checkout Button ===
 document.addEventListener("click", function (e) {
-  const t = e.target.closest("a, button");
-  if (!t) return;
+  if (checkoutLock) return; // stops endless loops
 
-  const txt = (t.textContent || "").toLowerCase();
-  const href = (t.getAttribute("href") || "").toLowerCase();
+  const target = e.target.closest("a, button");
+  if (!target) return;
 
-  if (txt.includes("checkout") || href.includes("checkout")) {
+  const txt = (target.textContent || "").toLowerCase();
+  const href = (target.getAttribute("href") || "").toLowerCase();
+  const action = (target.getAttribute("data-action") || "").toLowerCase();
+
+  if (
+    txt.includes("checkout") ||
+    href.includes("checkout") ||
+    action.includes("checkout")
+  ) {
     e.preventDefault();
     e.stopPropagation();
-    console.log("🔥 Stripe Intercept Active");
+
+    checkoutLock = true;  // freeze it so it doesn’t fire again
+    console.log("🔥 Checkout intercepted once only");
+
     startStripeCheckout();
   }
 });
