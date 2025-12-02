@@ -1,4 +1,39 @@
-const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+import Stripe from "stripe";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+// Only allow your real storefront to call this function
+const ALLOWED_ORIGINS = [
+  "https://axisbioscience.com",
+  "https://www.axisbioscience.com"
+];
+
+export default async function handler(req, res) {
+  // --- CORS ---
+  const origin = req.headers.origin || "";
+  if (ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
+
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  // Preflight
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
+  // Only POST allowed
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  try {
+    const { items } = req.body;
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: "No items in cart" });
+    }
 
 // Product Catalog
 const CATALOG = {
@@ -268,95 +303,44 @@ const CATALOG = {
   }
 };
 
-module.exports = async (req, res) => {
-  if (req.method !== "POST") {
-    return res.status(405).send("Method Not Allowed");
-  }
+// Convert cart items into Stripe line items
+    const line_items = items.map(item => {
+      const productEntry = PRODUCT_MAP[item.name];
 
-  try {
-    const { items, notes } = req.body;
-    let total = 0;
-    let metadataLines = [];
+      if (!productEntry) {
+        throw new Error(`Product not found in catalog: ${item.name}`);
+      }
 
-    // Build totals + metadata
-    for (const it of items) {
-      const product = CATALOG[it.name];
-      if (!product) continue;
+      const code = productEntry[item.variant];
+      if (!code) {
+        throw new Error(`Variant not found: ${item.name} - ${item.variant}`);
+      }
 
-      const variant = it.variant || "single";
-      const price = product.variants[variant];
+      return {
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name: code, // stealth code sent to Stripe
+          },
+          unit_amount: Math.round(item.price * 100) || 100, // fallback $1
+        },
+        quantity: item.qty,
+      };
+    });
 
-      total += price * (it.qty || 1);
-
-      metadataLines.push(`${product.code} x${it.qty || 1} (${variant})`);
-    }
-
-    // SHIPPING LOGIC
-    let shippingRate = "";
-    if (total < 20000) {
-      shippingRate = "shr_1SUZseCNw9KMO1UhE1H0WTY3"; // $15 shipping
-      metadataLines.push("Shipping: $15");
-    } else {
-      shippingRate = "shr_1SUZt6CNw9KMO1UhPR8DfJTT"; // free shipping
-      metadataLines.push("Free Shipping");
-    }
-
-    // If customer added order notes
-    if (notes && notes.trim() !== "") {
-      metadataLines.push(`Notes: ${notes.trim()}`);
-    }
-
-    // CREATE STRIPE SESSION
+    // Create Stripe Checkout session
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
-
-      billing_address_collection: "required",
-
-      shipping_address_collection: {
-        allowed_countries: ["US"]
-      },
-
-      phone_number_collection: {
-        enabled: true
-      },
-
-      shipping_options: [
-        { shipping_rate: shippingRate }
-      ],
-
-      line_items: [
-        {
-          price_data: {
-            currency: "usd",
-            product_data: {
-              name: "Order Total",
-              description: "Thank you for your order!"
-            },
-            unit_amount: total
-          },
-          quantity: 1
-        }
-      ],
-
-      metadata: {
-        order_details: metadataLines.join(" | ")
-      },
-
-      payment_intent_data: {
-        metadata: {
-          order_details: metadataLines.join(" | ")
-        }
-      },
-
+      line_items,
       success_url: "https://axisbioscience.com/success",
-      cancel_url: "https://axisbioscience.com/cancel"
+      cancel_url: "https://axisbioscience.com/cart",
     });
 
     return res.status(200).json({ url: session.url });
 
   } catch (err) {
-    console.error("Error:", err);
+    console.error("Checkout error:", err);
     return res.status(500).json({ error: err.message });
   }
-};
+}
